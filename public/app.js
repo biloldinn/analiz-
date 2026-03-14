@@ -4,6 +4,27 @@
 
 const API_BASE = window.location.origin;
 
+// Fetch loaded books from server
+async function fetchBooksStatus() {
+    try {
+        const res = await fetch(`${API_BASE}/api/books`);
+        const data = await res.json();
+        if (data.success && data.loaded > 0) {
+            const booksEl = document.getElementById('booksStatus');
+            if (booksEl) {
+                booksEl.innerHTML = `✅ <strong>${data.loaded} ta kitob AI ga integratsiya qilindi:</strong><br><span style="color:var(--text-secondary)">${data.books.map(b => '• ' + b).join('<br>')}</span>`;
+            }
+            const headerBadge = document.getElementById('booksBadge');
+            if (headerBadge) {
+                headerBadge.textContent = `📚 ${data.loaded} kitob yuklangan`;
+                headerBadge.style.color = 'var(--accent-green)';
+            }
+        }
+    } catch (e) {
+        console.log('Books status fetch failed (server may not be running)');
+    }
+}
+
 // -------- State --------
 let currentSymbol = 'BTCUSDT';
 let currentInterval = '1h';
@@ -582,6 +603,7 @@ async function init() {
     startLiveTick();
     await fetchCandles();  // Then fetch real
     setInterval(fetchCandles, 60000); // Refresh every minute
+    fetchBooksStatus();    // Load PDF books status from server
 }
 
 init();
