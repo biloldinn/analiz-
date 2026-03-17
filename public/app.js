@@ -62,21 +62,24 @@ function initChart() {
         width: tvContainer.clientWidth,
         height: tvContainer.clientHeight,
         layout: {
-            background: { type: 'solid', color: '#0a0e1a' },
-            textColor: '#8892a4',
+            background: { type: 'solid', color: '#0d1117' },
+            textColor: '#8b949e',
+            fontSize: 11,
         },
         grid: {
-            vertLines: { color: 'rgba(255,255,255,0.04)' },
-            horzLines: { color: 'rgba(255,255,255,0.04)' },
+            vertLines: { color: 'rgba(42, 46, 57, 0.4)' },
+            horzLines: { color: 'rgba(42, 46, 57, 0.4)' },
         },
         crosshair: {
             mode: LightweightCharts.CrosshairMode.Normal,
+            vertLine: { color: '#8b949e', width: 0.5, style: 2, labelBackgroundColor: '#0d1117' },
+            horzLine: { color: '#8b949e', width: 0.5, style: 2, labelBackgroundColor: '#0d1117' },
         },
         rightPriceScale: {
-            borderColor: 'rgba(255,255,255,0.1)',
+            borderColor: 'rgba(42, 46, 57, 0.6)',
         },
         timeScale: {
-            borderColor: 'rgba(255,255,255,0.1)',
+            borderColor: 'rgba(42, 46, 57, 0.6)',
             timeVisible: true,
             secondsVisible: false,
         },

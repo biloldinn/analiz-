@@ -369,37 +369,73 @@ body {
 }
 
 .analysis-result {
-    font-size: 0.85rem;
-    line-height: 1.6;
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: #e6edf3;
+}
+
+.md-section {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .md-h2 {
-    font-size: 0.9rem;
+    font-size: 1rem;
     color: var(--accent-gold);
-    margin: 16px 0 8px;
-    border-left: 3px solid var(--accent-gold);
-    padding-left: 8px;
-    font-weight: 700;
+    margin: 0 0 12px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.md-h2::before {
+    content: '';
+    width: 4px;
+    height: 16px;
+    background: var(--accent-gold);
+    border-radius: 2px;
+}
+
+.md-text {
+    color: #8b949e;
 }
 
 .signal-badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-weight: 700;
-    margin: 4px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 1.1rem;
+    margin: 12px 0;
+    text-align: center;
 }
 
 .signal-buy {
-    background: rgba(0, 230, 118, 0.15);
-    color: var(--accent-green);
-    border: 1px solid var(--accent-green);
+    background: rgba(38, 166, 154, 0.1);
+    color: #26a69a;
+    border: 1px solid rgba(38, 166, 154, 0.3);
+    box-shadow: 0 0 20px rgba(38, 166, 154, 0.1);
 }
 
 .signal-sell {
-    background: rgba(255, 59, 48, 0.15);
-    color: var(--accent-red);
-    border: 1px solid var(--accent-red);
+    background: rgba(239, 83, 80, 0.1);
+    color: #ef5350;
+    border: 1px solid rgba(239, 83, 80, 0.3);
+    box-shadow: 0 0 20px rgba(239, 83, 80, 0.1);
+}
+
+.signal-wait {
+    background: rgba(255, 214, 10, 0.1);
+    color: var(--accent-gold);
+    border: 1px solid rgba(255, 214, 10, 0.3);
 }
 
 /* ========== BOTTOM NAVIGATION ========== */

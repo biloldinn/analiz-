@@ -4,6 +4,8 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
 const fs = require('fs');
 
+require('dotenv').config();
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -11,12 +13,12 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'AIzaSyDn2SUrDcDUjyUKd8OQqlyf6Tzb663FcU0');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-const visionModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }); // Vision support
+const visionModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-const OPENROUTER_API_KEY = "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";
-const OPENROUTER_MODEL = "arcee-ai/trinity-mini:free";
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "arcee-ai/trinity-mini:free";
 
 // ===================================================
 // PDF BOOKS LOADER
