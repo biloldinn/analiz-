@@ -14,8 +14,9 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-const visionModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+// Use gemini-1.5-flash for both as it supports vision and text
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const visionModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "arcee-ai/trinity-mini:free";
