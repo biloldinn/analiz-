@@ -409,6 +409,9 @@ function renderAnalysis(text) {
 function markdownToHtml(text) {
     return text
         .replace(/\*\*(.*?)\*\*/g, '<strong style="color:#e8eaf6">$1</strong>')
+        .replace(/🟢 SOTIB OL \(BUY\)/g, '<div class="signal-badge signal-buy">🟢 SOTIB OL (BUY)</div>')
+        .replace(/🔴 SOT \(SELL\)/g, '<div class="signal-badge signal-sell">🔴 SOT (SELL)</div>')
+        .replace(/🟡 KUTISH \(WAIT\)/g, '<div class="signal-badge signal-wait">🟡 KUTISH (WAIT)</div>')
         .replace(/🟢 SOTIB OL/g, '<span class="signal-badge signal-buy">🟢 SOTIB OL</span>')
         .replace(/🔴 SOT/g, '<span class="signal-badge signal-sell">🔴 SOT</span>')
         .replace(/🟡 KUTISH/g, '<span class="signal-badge signal-wait">🟡 KUTISH</span>')

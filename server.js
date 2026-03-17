@@ -13,10 +13,15 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Initialize with v1beta to ensure gemini-1.5-flash availability if v1 is restricted
+// Initialize with default settings - gemini-1.5-flash is stable on v1
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: 'v1beta' });
-const visionModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }, { apiVersion: 'v1beta' });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+if (!process.env.GEMINI_API_KEY) {
+    console.error('❌ CRITICAL: GEMINI_API_KEY is not defined in .env');
+} else {
+    console.log('✅ GEMINI_API_KEY loaded from .env');
+}
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "arcee-ai/trinity-mini:free";
