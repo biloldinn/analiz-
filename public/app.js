@@ -88,7 +88,12 @@ function initChart() {
         "calendar": true,
         "show_popup_button": true,
         "popup_width": "1000",
-        "popup_height": "650"
+        "popup_height": "650",
+        "studies": [
+            "RSI@tv-basicstudies",
+            "StochasticRSI@tv-basicstudies",
+            "PivotPointsHighLow@tv-basicstudies"
+        ]
     });
 }
 
