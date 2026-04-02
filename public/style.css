@@ -221,6 +221,49 @@ body {
     display: block;
 }
 
+.auto-analysis-bar {
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: center;
+}
+
+.btn-live-ai {
+    background: linear-gradient(135deg, #FFD60A, #FF9F0A);
+    border: none;
+    border-radius: 20px;
+    padding: 8px 18px;
+    color: #000;
+    font-weight: 800;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255, 214, 10, 0.3);
+    transition: all 0.2s;
+    animation: pulse-glow 2s infinite;
+}
+
+.btn-live-ai:active {
+    transform: scale(0.95);
+}
+
+@keyframes pulse-glow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 214, 10, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 214, 10, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 214, 10, 0);
+    }
+}
+
 /* ========== UPLOAD SECTION (MOBILE NATIVE FEEL) ========== */
 .upload-card {
     background: var(--bg-card);
@@ -562,6 +605,54 @@ body {
     place-items: center;
 }
 
+/* Signal History */
+.signal-history {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px;
+}
+
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+.history-item:last-child {
+    border-bottom: none;
+}
+
+.history-pair {
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.history-time {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    margin-left: 6px;
+}
+
+.history-dir {
+    font-weight: 800;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.history-dir.buy {
+    background: rgba(38, 166, 154, 0.1);
+    color: #26a69a;
+}
+
+.history-dir.sell {
+    background: rgba(239, 83, 80, 0.1);
+    color: #ef5350;
+}
+
 /* Spinner */
 .spinner {
     width: 24px;
@@ -576,6 +667,279 @@ body {
     to {
         transform: rotate(360deg);
     }
+}
+
+.section-divider {
+    font-size: 0.9rem;
+    font-weight: 800;
+    margin: 24px 0 16px;
+    color: var(--accent-gold);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.candle-gallery {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.candle-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.candle-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateY(-2px);
+}
+
+.candle-name {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.candle-desc {
+    font-size: 0.55rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+    line-height: 1.2;
+}
+
+.candle-v-hammer,
+.candle-v-shooting,
+.candle-v-engulfing,
+.candle-v-pinbar,
+.candle-v-doji,
+.candle-v-mstar,
+.candle-v-estar,
+.candle-v-harami,
+.candle-v-piercing {
+    width: 20px;
+    height: 44px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Glow helper */
+[class^="candle-v-"]::before {
+    filter: drop-shadow(0 0 4px currentColor);
+}
+
+/* Hammer (Green) */
+.candle-v-hammer::before {
+    content: '';
+    width: 14px;
+    height: 10px;
+    background: #26a69a;
+    border-radius: 2px;
+    position: absolute;
+    top: 12px;
+    color: #26a69a;
+}
+
+.candle-v-hammer::after {
+    content: '';
+    width: 2px;
+    height: 20px;
+    background: #26a69a;
+    position: absolute;
+    top: 22px;
+}
+
+/* Shooting Star (Red) */
+.candle-v-shooting::before {
+    content: '';
+    width: 14px;
+    height: 10px;
+    background: #ef5350;
+    border-radius: 2px;
+    position: absolute;
+    bottom: 12px;
+    color: #ef5350;
+}
+
+.candle-v-shooting::after {
+    content: '';
+    width: 2px;
+    height: 20px;
+    background: #ef5350;
+    position: absolute;
+    bottom: 22px;
+}
+
+/* Engulfing (Green over small red) */
+.candle-v-engulfing::before {
+    content: '';
+    width: 6px;
+    height: 12px;
+    background: #ef5350;
+    position: absolute;
+    left: 0;
+    bottom: 12px;
+    opacity: 0.6;
+}
+
+.candle-v-engulfing::after {
+    content: '';
+    width: 10px;
+    height: 28px;
+    background: #26a69a;
+    position: absolute;
+    right: 0;
+    bottom: 6px;
+    border-radius: 1px;
+    box-shadow: 0 0 5px rgba(38, 166, 154, 0.3);
+}
+
+/* Pin Bar (Wick focus) */
+.candle-v-pinbar::before {
+    content: '';
+    width: 10px;
+    height: 6px;
+    background: #fff;
+    position: absolute;
+    top: 8px;
+}
+
+.candle-v-pinbar::after {
+    content: '';
+    width: 1px;
+    height: 32px;
+    background: #fff;
+}
+
+/* Doji */
+.candle-v-doji::before {
+    content: '';
+    width: 16px;
+    height: 1.5px;
+    background: #fff;
+    box-shadow: 0 0 6px #fff;
+}
+
+.candle-v-doji::after {
+    content: '';
+    width: 1px;
+    height: 28px;
+    background: #fff;
+    position: absolute;
+}
+
+/* Morning Star (Green focus) */
+.candle-v-mstar::before {
+    content: '';
+    width: 6px;
+    height: 14px;
+    background: #ef5350;
+    position: absolute;
+    left: -8px;
+    bottom: 15px;
+    opacity: 0.5;
+}
+
+.candle-v-mstar::after {
+    content: '';
+    width: 6px;
+    height: 24px;
+    background: #26a69a;
+    position: absolute;
+    right: -8px;
+    bottom: 10px;
+}
+
+.candle-v-mstar {
+    width: 5px;
+    height: 5px;
+    background: #fff;
+    border-radius: 50%;
+    opacity: 0.8;
+}
+
+/* Evening Star (Red focus) */
+.candle-v-estar::before {
+    content: '';
+    width: 6px;
+    height: 24px;
+    background: #26a69a;
+    position: absolute;
+    left: -8px;
+    bottom: 10px;
+    opacity: 0.5;
+}
+
+.candle-v-estar::after {
+    content: '';
+    width: 6px;
+    height: 24px;
+    background: #ef5350;
+    position: absolute;
+    right: -8px;
+    bottom: 10px;
+}
+
+.candle-v-estar {
+    width: 5px;
+    height: 5px;
+    background: #fff;
+    border-radius: 50%;
+    top: -8px;
+}
+
+/* Harami */
+.candle-v-harami::before {
+    content: '';
+    width: 10px;
+    height: 28px;
+    background: #26a69a;
+    position: absolute;
+    left: -2px;
+}
+
+.candle-v-harami::after {
+    content: '';
+    width: 6px;
+    height: 12px;
+    background: #ef5350;
+    position: absolute;
+    right: -2px;
+    border-radius: 1px;
+}
+
+/* Piercing Line */
+.candle-v-piercing::before {
+    content: '';
+    width: 8px;
+    height: 28px;
+    background: #ef5350;
+    position: absolute;
+    left: -2px;
+    bottom: 10px;
+    opacity: 0.8;
+}
+
+.candle-v-piercing::after {
+    content: '';
+    width: 8px;
+    height: 28px;
+    background: #26a69a;
+    position: absolute;
+    right: -2px;
+    bottom: 5px;
 }
 
 /* Toast */

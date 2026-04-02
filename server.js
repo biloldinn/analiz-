@@ -1,247 +1,251 @@
 const express = require('express');
 const cors = require('cors');
-const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const pdf = require('pdf-parse');
 
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "google/gemini-flash-1.5"; // Using Gemini 1.5 Flash as default via OpenRouter
+// Client Init with Rotation
+const API_KEYS = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3
+].filter(Boolean);
 
-// ===================================================
-// PDF BOOKS LOADER
-// ===================================================
-let BOOK_KNOWLEDGE = '';
-let loadedBooks = [];
+let currentKeyIndex = 0;
+const MODEL_NAME = "gemini-2.0-flash";
 
-async function loadPdfBooks() {
-    const booksDir = path.join(__dirname, 'books');
-    if (!fs.existsSync(booksDir)) {
-        console.warn('⚠️ books/ papkasi topilmadi. Standart bilim bazasi ishlatiladi.');
-        return;
-    }
+// Helper to get genAI instance
+function getGenAI() {
+    return new GoogleGenerativeAI(API_KEYS[currentKeyIndex]);
+}
 
-    let pdfParse;
-    try {
-        pdfParse = require('pdf-parse');
-    } catch (e) {
-        console.warn('⚠️ pdf-parse kutubxonasi topilmadi. npm install bajaring.');
-        return;
-    }
+// Function to call Gemini with automatic fallback/retry on 429
+async function callGemini(prompt, isVision = false, imageBase64 = null) {
+    let lastError = null;
 
-    const files = fs.readdirSync(booksDir).filter(f => f.endsWith('.pdf'));
-    console.log(`📚 ${files.length} ta kitob topildi. O'qilmoqda...`);
-
-    const texts = [];
-    for (const file of files) {
+    // Try both keys if needed
+    for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
         try {
-            const filePath = path.join(booksDir, file);
-            const buffer = fs.readFileSync(filePath);
-            const data = await pdfParse(buffer); // Barcha sahifalarni o'qish (limisiz)
-            const text = data.text
-                .replace(/\s+/g, ' ')
-                .replace(/(.)\1{5,}/g, '$1') // remove repeated chars
-                .trim(); // Hech qanday qisqartirishsiz (to'liq matn)
+            const genAI = getGenAI();
+            const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-            if (text.length > 100) {
-                texts.push(`\n=== KITOB: "${file}" ===\n${text}\n`);
-                loadedBooks.push(file);
-                console.log(`  ✅ ${file} (${text.length} belgi yuklandi)`);
+            let result;
+            if (isVision && imageBase64) {
+                const parts = [
+                    { text: prompt },
+                    { inlineData: { data: imageBase64.split(',')[1], mimeType: "image/jpeg" } }
+                ];
+                result = await model.generateContent(parts);
+            } else {
+                result = await model.generateContent(prompt);
             }
-        } catch (err) {
-            console.warn(`  ⚠️ ${file} o'qishda xato:`, err.message);
+
+            const response = await result.response;
+            return { success: true, text: response.text() };
+        } catch (error) {
+            console.error(`Gemini Error on Key ${currentKeyIndex + 1}:`, error.message);
+            lastError = error;
+
+            // If 429 (Quota Exceeded), rotate key and try again
+            if (error.message.includes('429') || error.message.includes('Quota')) {
+                currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
+                console.log(`Key rotated! Now using Key ${currentKeyIndex + 1}. Waiting 2s...`);
+                // Wait 2 seconds before retry to let the quota breathe
+                await new Promise(r => setTimeout(r, 2000));
+                continue; // Next iteration tries the next key
+            }
+
+            // If other error (e.g. 404, 500), just break and return failure
+            break;
         }
     }
 
-    BOOK_KNOWLEDGE = texts.join('\n');
-    console.log(`✅ Jami ${loadedBooks.length} ta kitob AI ga integratsiya qilindi!`);
-}
-
-// ===================================================
-// STATIC KNOWLEDGE (fallback + supplement)
-// ===================================================
-// User requested to remove static hardcoded knowledge so it relies fully on PDFs:
-const STATIC_KNOWLEDGE = ``;
-
-// ===================================================
-// FULL PROMPT BUILDER
-// ===================================================
-function buildSystemPrompt() {
-    return `SIZ PROFESSIONAL TRADING ANALISTISIZ. 
-
-=== YUKLANGAN KITOBLARDAN MA'LUMOTLAR ===
-${BOOK_KNOWLEDGE}
-
-JAVOB BERISH QOIDALARI:
-- FAQAT O'ZBEK TILIDA javob bering
-- Professional, aniq va qisqa bo'lsin
-- Har doim kitoblardagi aniq kontseptsiyalar va strategiyalarni ishlating. Javobingiz faqat kitoblarga asoslangan bo'lishi shart!
-- Yuklangan kitoblar: ${loadedBooks.join(', ')}`;
-}
-
-// ===================================================
-// API: CHART ANALYSIS (with image)
-// ===================================================
-app.post('/api/analyze', async (req, res) => {
-    const { imageBase64, timeframe, pair, additionalContext } = req.body;
-    if (!imageBase64) return res.status(400).json({ success: false, error: 'Rasm kerak!' });
-
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-    const mimeType = imageBase64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
-
-    const prompt = `${buildSystemPrompt()}
-
-TAHLIL QILISH UCHUN:
-- Juftlik: ${pair || 'XAU/USD'}
-- Vaqt oralig'i: ${timeframe || 'M5'}
-- Qo'shimcha: ${additionalContext || 'Yo\'q'}
-
-VAZIFANGIZ: Bu savdo terminali (MT4/MT5) skrinshotidir. Uni FAQAT GINA YUKLANGAN KITOBLARDAGI professional strategiyalarga (SMC, Wyckoff, Elliott Wave, MO3, SND va boshqalar) tayanib juda chuqur tahlil qiling. 
-
-DIQQAT: Sizning tahlilingiz va beradigan BUY/SELL/WAIT signalingiz faqat yuklangan kitoblarda yozilgan texnik qoidalar (Order Block, FVG, BOS, CHoCH, Liquidity sweep va h.k.) asosida bo'lishi SHART. Agar rasmda kitoblardagi biror aniq pattern (masalan, Quasimodo yoki Spring) bo'lsa, uni nomi bilan ayting.
-
-O'zbek tilida professional treyderdek javob bering. Quyidagi tuzilmaga qat'iy rioya qiling:
-
-## 📊 BOZOR STRUKTURASI
-[Joriy trend haqida batafsil ma'lumot. Kitoblar bo'yicha HH, HL, LH, LL qanday shakllanmoqda? Trend o'zgarishi bormi?]
-
-## 🕯️ SHAMLAR VA ZONALAR TAHLILI
-[Ko'rinayotgan shamlar naqshlari. Kitoblardagi qaysi pattern (Engulfing, Doji va h.k.) bor? Order Blocklar va FVG zonalari qayerda?]
-
-## 🎯 KESKIN SIGNAL VA TAVSIYA
-Signal: 🟢 SOTIB OL (BUY) / 🔴 SOT (SELL) / 🟡 KUTISH (WAIT)
-[Kitoblar bilimiga asoslangan keskin va aniq xulosa.]
-Kirish (Entry) zonasi: [Aniq narx yoki zona]
-Zararni cheklash (SL): [Qayerga va nega?]
-Foyda olish (TP): [Maqsad zonasi]
-
-## 💡 MT5/PROFESSIONAL MASLAHAT
-[Bu vaziyatda integratsiya qilingan kitoblar nimani uqtiradi? Risk va psixologiya bo'yicha qisqa tavsiya.]`;
-
+    // Final Fallback to OpenRouter if all Gemini keys fail
+    console.log("⚠️ Barcha Gemini kalitlari band. OpenRouter (Zaxira) ishga tushyapti...");
     try {
-        const systemPrompt = buildSystemPrompt();
-
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
-                "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://github.com/biloldinn/treding",
-                "X-Title": "Turon AI Trading"
+                "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: "google/gemini-flash-1.5", // Using Gemini 1.5 Flash via OpenRouter
-                messages: [
+                "model": "google/gemini-2.0-flash-001",
+                "messages": [
                     {
-                        role: "user",
-                        content: [
-                            {
-                                type: "text",
-                                text: prompt
-                            },
-                            {
-                                type: "image_url",
-                                image_url: {
-                                    url: imageBase64 // OpenRouter supports data URLs
-                                }
-                            }
-                        ]
+                        "role": "user", "content": isVision && imageBase64 ? [
+                            { "type": "text", "text": prompt },
+                            { "type": "image_url", "image_url": { "url": imageBase64 } }
+                        ] : prompt
                     }
                 ]
             })
         });
-
         const data = await response.json();
-
-        if (data.choices && data.choices.length > 0) {
-            res.json({ success: true, analysis: data.choices[0].message.content, booksUsed: loadedBooks });
-        } else {
-            console.error('OpenRouter Analysis Error:', data);
-            throw new Error(data.error?.message || 'OpenRouter tahlil qaytarmadi');
+        if (data.choices && data.choices[0]) {
+            return { success: true, text: data.choices[0].message.content };
         }
-    } catch (error) {
-        console.error('AI tahlil xatosi:', error);
-        res.status(500).json({ success: false, error: 'AI tahlilida xatolik: ' + error.message });
+    } catch (err) {
+        console.error("OpenRouter Error:", err.message);
     }
-});
 
-// ===================================================
-// API: CHAT
-// ===================================================
-try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://github.com/biloldinn/treding",
-            "X-Title": "Turon AI Trading"
-        },
-        body: JSON.stringify({
-            model: OPENROUTER_MODEL,
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: `FOYDALANUVCHI SAVOLI: "${message}"\n\nO'zbek tilida qisqa, professional va aniq javob bering. Kitoblardagi kontseptsiyalardan foydalaning.` }
-            ]
-        })
-    });
-
-    const data = await response.json();
-    if (data && data.choices && data.choices.length > 0) {
-        res.json({ success: true, response: data.choices[0].message.content });
-    } else {
-        throw new Error(data.error?.message || 'OpenRouter javob bermadi');
-    }
-} catch (error) {
-    console.error('Chat xatosi:', error);
-    res.status(500).json({ success: false, error: 'Chat xatosi: ' + error.message });
+    return { success: false, error: lastError?.message || "Noma'lum AI xatosi" };
 }
-});
 
 // ===================================================
-// API: BOOKS STATUS
+// PDF BOOKS LOADER
 // ===================================================
-app.get('/api/books', (req, res) => {
-    res.json({
-        success: true,
-        loaded: loadedBooks.length,
-        books: loadedBooks,
-        knowledgeSize: BOOK_KNOWLEDGE.length,
-        status: loadedBooks.length > 0 ? 'Kitoblar integratsiya qilindi ✅' : 'Standart bilim bazasi ishlatilmoqda'
-    });
-});
+const BOOKS_DIR = path.join(__dirname, 'books');
+let BOOK_KNOWLEDGE = "";
+let loadedBooksNames = [];
 
-// ===================================================
-// API: MARKET DATA
-// ===================================================
-app.get('/api/market/:symbol', async (req, res) => {
+async function loadBooks() {
     try {
-        const url = `https://api.binance.com/api/v3/klines?symbol=${req.params.symbol}&interval=1h&limit=100`;
-        const response = await fetch(url);
-        const data = await response.json();
-        res.json({ success: true, data });
+        if (!fs.existsSync(BOOKS_DIR)) fs.mkdirSync(BOOKS_DIR);
+        const files = fs.readdirSync(BOOKS_DIR).filter(f => f.endsWith('.pdf'));
+
+        for (const file of files) {
+            const dataBuffer = fs.readFileSync(path.join(BOOKS_DIR, file));
+            const data = await pdf(dataBuffer);
+            BOOK_KNOWLEDGE += `\n--- KITOB: ${file} ---\n${data.text}\n`;
+            loadedBooksNames.push(file);
+        }
+
+        // TURBO MODE: Truncate to 40k to ensure instant AI response.
+        if (BOOK_KNOWLEDGE.length > 40000) {
+            console.log(`⚡ Turbo Mode: Bilimlar bazasi qisqartirildi (${BOOK_KNOWLEDGE.length} -> 40000).`);
+            BOOK_KNOWLEDGE = BOOK_KNOWLEDGE.substring(0, 40000) + "\n[...]";
+        }
+
+        console.log(`✅ ${loadedBooksNames.length} ta kitob tayyor!`);
     } catch (error) {
-        res.status(500).json({ success: false, error: 'Bozor ma\'lumotlari olishda xato' });
+        console.error('PDF o‘qishda xato:', error);
+    }
+}
+
+loadBooks();
+
+// ===================================================
+// API ENDPOINTS
+// ===================================================
+
+app.get('/api/books', (req, res) => {
+    res.json({ success: true, books: loadedBooksNames, loaded: loadedBooksNames.length });
+});
+
+// 1. Analyze Chart (Gemini Vision with Rotation)
+app.post('/api/analyze', async (req, res) => {
+    const { imageBase64, pair, timeframe, additionalContext } = req.body;
+
+    if (!imageBase64) {
+        return res.status(400).json({ success: false, error: 'Rasm topilmadi!' });
+    }
+
+    const prompt = `
+        SEN PROFESSIONAL DFX (DEMOND FX) EKSPERT TREYDERMISAN. 
+        Sening maqsading - bozorni chirurgik aniqlikda tahlil qilish.
+        
+        TOPHIRIQ:
+        Rasmdagi ${pair} grafigini ${timeframe} intervalida professional tahlil qil.
+        
+        TAHLIL QOIDALARI:
+        1. **FIBONACCI:** Eng oxirgi impulsli harakatni aniqla. 0.5 (Equilibrium), 0.618 (Golden Pocket) va 0.786 (OTE) darajalarini ko'rsat. Narx Discount yoki Premium zonadaligini ayt.
+        2. **LIQUIDITY & SL:** Likvidlik (liquidity hunt) hududlarini aniqla. Stop-Loss (SL) ni aynan qayerga (qaysi likvidlik yoki order block ortiga) qo'yishni ko'rsat.
+        3. **TARGETS:** Take-Profit (TP) uchun eng yaqin kutilayotgan likvidlik zonalarini belgi.
+        4. **DFX STRATEGY:** Bank manipulyatsiyasi (False Move) va Yapon shamlarini birgalikda qo'lla.
+        
+        NATIJANI QUYIDAGI FORMATDA BER (MAKSIMAL ANIQ):
+        ## 📊 FIBONACCI VA BOZOR HOLATI
+        (Impuls, 0.5, 0.618 darajalar va hozirgi zona)
+        
+        ## 🕯️ SHAM NAQSHLARI VA SMC
+        (Aniq ko'ringan shamlar va Order Block/FVG holati)
+        
+        ## 🎯 SIGNAL VA XAVF BOSHQARUVI
+        - **SIGNAL:** 🟢 BUY / 🔴 SELL / 🟡 WAIT
+        - **STOP-LOSS (SL):** (Aniq qayerga qo'yish kerakligi)
+        - **TAKE-PROFIT (TP):** (Kutilayotgan maqsad)
+        
+        Muhim: Faqat o'zbek tilida, juda aniq va qisqa javob ber.
+    `;
+
+    const aiRes = await callGemini(prompt, true, imageBase64);
+
+    if (aiRes.success) {
+        res.json({ success: true, analysis: aiRes.text });
+    } else {
+        res.status(500).json({ success: false, error: aiRes.error });
+    }
+});
+
+// 2. AI Chat (Now Powered by GROQ for Instaspeed!)
+app.post('/api/chat', async (req, res) => {
+    const { message } = req.body;
+
+    const chatPrompt = `
+        SEN TRADING BO'YICHA AI EKSPERTMISAN. 
+        Sening bilimlaring @demond_fx va quyidagi 14 ta kitob metodikasiga asoslangan:
+        
+        BILIMLAR BAZASI:
+        ${BOOK_KNOWLEDGE}
+        
+        SAVOL: "${message}"
+        
+        Topshiriq: Ushbu savolga faqat yuqoridagi bilimlar bazasiga asoslanib javob ber. Agar kitoblarda javob bo'lmasa, umumiy trading bilimingdan foydalan, lekin muallifning (@demond_fx) metodikasiga rioya qil. Faqat o'zbek tilida javob ber.
+    `;
+
+    try {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                "model": "llama-3.3-70b-specdec",
+                "messages": [{ "role": "user", "content": chatPrompt }],
+                "max_tokens": 1024
+            })
+        });
+        const data = await response.json();
+        if (data.choices && data.choices[0]) {
+            res.json({ success: true, response: data.choices[0].message.content });
+        } else {
+            console.log("Groq Fail, Falling back to Gemini Chat...");
+            const aiRes = await callGemini(chatPrompt);
+            res.json({ success: aiRes.success, response: aiRes.text || aiRes.error });
+        }
+    } catch (e) {
+        console.error("Groq Chat Error:", e);
+        const aiRes = await callGemini(chatPrompt);
+        res.json({ success: aiRes.success, response: aiRes.text || aiRes.error });
     }
 });
 
 // ===================================================
 // START SERVER
 // ===================================================
-loadPdfBooks().then(() => {
-    app.listen(PORT, () => {
-        console.log(`\n🚀 Trading AI Server: http://localhost:${PORT}`);
-        console.log(`📚 Integratsiya qilingan kitoblar: ${loadedBooks.length}`);
-        if (loadedBooks.length > 0) {
-            loadedBooks.forEach(b => console.log(`   • ${b}`));
-        }
-    });
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+    console.log(`🚀 Server http://localhost:${PORT} da ishga tushdi!`);
+});
+
+// Binanace data - used by client for charts
+app.get('/api/market/:symbol', async (req, res) => {
+    try {
+        const resEnv = await fetch(`https://api.binance.com/api/v3/klines?symbol=${req.params.symbol}&interval=1h&limit=100`);
+        const data = await resEnv.json();
+        res.json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Data error' });
+    }
 });
