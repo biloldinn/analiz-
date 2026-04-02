@@ -93,12 +93,14 @@ async function callGemini(prompt, isVision = false, imageBase64 = null) {
         const data = await response.json();
         if (data.choices && data.choices[0]) {
             return { success: true, text: data.choices[0].message.content };
+        } else {
+            console.error("OpenRouter Response:", JSON.stringify(data));
+            return { success: false, error: "OpenRouter Zaxira ishlamadi: " + (data.error?.message || "Noma'lum xato") };
         }
     } catch (err) {
         console.error("OpenRouter Error:", err.message);
+        return { success: false, error: "AI Zaxirasi xatosi: " + err.message };
     }
-
-    return { success: false, error: lastError?.message || "Noma'lum AI xatosi" };
 }
 
 // ===================================================
