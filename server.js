@@ -144,7 +144,7 @@ app.get('/api/books', (req, res) => {
     res.json({ success: true, books: loadedBooksNames, loaded: loadedBooksNames.length });
 });
 
-// 1. Analyze Chart (Gemini Vision with Rotation)
+// 1. Analyze Chart (Groq Vision + Books Integration)
 app.post('/api/analyze', async (req, res) => {
     const { imageBase64, pair, timeframe, additionalContext } = req.body;
 
@@ -152,40 +152,70 @@ app.post('/api/analyze', async (req, res) => {
         return res.status(400).json({ success: false, error: 'Rasm topilmadi!' });
     }
 
-    const prompt = `
+    const mainPrompt = `
         SEN PROFESSIONAL DFX (DEMOND FX) EKSPERT TREYDERMISAN. 
         Sening maqsading - bozorni chirurgik aniqlikda tahlil qilish.
+        Sening ixtiyoringda ushbu kitoblar va bilimlar bazasi bor:
+        ${BOOK_KNOWLEDGE}
         
         TOPHIRIQ:
         Rasmdagi ${pair} grafigini ${timeframe} intervalida professional tahlil qil.
         
         TAHLIL QOIDALARI:
-        1. **FIBONACCI:** Eng oxirgi impulsli harakatni aniqla. 0.5 (Equilibrium), 0.618 (Golden Pocket) va 0.786 (OTE) darajalarini ko'rsat. Narx Discount yoki Premium zonadaligini ayt.
-        2. **LIQUIDITY & SL:** Likvidlik (liquidity hunt) hududlarini aniqla. Stop-Loss (SL) ni aynan qayerga (qaysi likvidlik yoki order block ortiga) qo'yishni ko'rsat.
-        3. **TARGETS:** Take-Profit (TP) uchun eng yaqin kutilayotgan likvidlik zonalarini belgi.
-        4. **DFX STRATEGY:** Bank manipulyatsiyasi (False Move) va Yapon shamlarini birgalikda qo'lla.
+        1. **FIBONACCI:** Eng oxirgi impulsli harakatni aniqla. 0.5 (Equilibrium), 0.618 (Golden Pocket) va 0.786 (OTE) darajalarini ko'rsat.
+        2. **LIQUIDITY & SL:** Likvidlik (liquidity hunt) hududlarini aniqla. Stop-Loss (SL) ni aynan qayerga qo'yishni ko'rsat.
+        3. **TARGETS:** Take-Profit (TP) uchun eng yaqin kutilayotgan likvidlik zonalarini belgilang.
+        4. **DFX STRATEGY:** Yuqoridagi kitoblardan (SMC, Wyckoff, Yapon shamlari) foydalanib bozorni o'qi.
         
         NATIJANI QUYIDAGI FORMATDA BER (MAKSIMAL ANIQ):
         ## 📊 FIBONACCI VA BOZOR HOLATI
-        (Impuls, 0.5, 0.618 darajalar va hozirgi zona)
+        (Impuls, darajalar va hozirgi holat)
         
         ## 🕯️ SHAM NAQSHLARI VA SMC
-        (Aniq ko'ringan shamlar va Order Block/FVG holati)
+        (Kitoblarga asoslangan sham va bloklar tahlili)
         
         ## 🎯 SIGNAL VA XAVF BOSHQARUVI
         - **SIGNAL:** 🟢 BUY / 🔴 SELL / 🟡 WAIT
-        - **STOP-LOSS (SL):** (Aniq qayerga qo'yish kerakligi)
-        - **TAKE-PROFIT (TP):** (Kutilayotgan maqsad)
+        - **STOP-LOSS (SL):** (Aniq daraja)
+        - **TAKE-PROFIT (TP):** (Kutilayotgan TP)
         
-        Muhim: Faqat o'zbek tilida, juda aniq va qisqa javob ber.
+        Muhim: Faqat o'zbek tilida qisqa va faktlarga asoslangan javob ber.
     `;
 
-    const aiRes = await callGemini(prompt, true, imageBase64);
+    try {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                "model": "llama-3.2-90b-vision-preview",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            { "type": "text", "text": mainPrompt },
+                            { "type": "image_url", "image_url": { "url": imageBase64 } }
+                        ]
+                    }
+                ],
+                "max_tokens": 1024
+            })
+        });
 
-    if (aiRes.success) {
-        res.json({ success: true, analysis: aiRes.text });
-    } else {
-        res.status(500).json({ success: false, error: aiRes.error });
+        const data = await response.json();
+        if (data.choices && data.choices[0]) {
+            res.json({ success: true, analysis: data.choices[0].message.content });
+        } else {
+            console.log("Groq Vision Fail, Falling back to Gemini/OpenRouter...");
+            const aiRes = await callGemini(mainPrompt, true, imageBase64);
+            res.json({ success: aiRes.success, analysis: aiRes.text || aiRes.error });
+        }
+    } catch (e) {
+        console.error("Groq Analysis Error:", e);
+        const aiRes = await callGemini(mainPrompt, true, imageBase64);
+        res.json({ success: aiRes.success, analysis: aiRes.text || aiRes.error });
     }
 });
 
