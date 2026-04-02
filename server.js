@@ -190,7 +190,7 @@ app.post('/api/analyze', async (req, res) => {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                "model": "llama-3.2-90b-vision-preview",
+                "model": "llama-3.2-11b-vision-preview",
                 "messages": [
                     {
                         "role": "user",
@@ -208,14 +208,12 @@ app.post('/api/analyze', async (req, res) => {
         if (data.choices && data.choices[0]) {
             res.json({ success: true, analysis: data.choices[0].message.content });
         } else {
-            console.log("Groq Vision Fail, Falling back to Gemini/OpenRouter...");
-            const aiRes = await callGemini(mainPrompt, true, imageBase64);
-            res.json({ success: aiRes.success, analysis: aiRes.text || aiRes.error });
+            console.error("Groq Analysis Failed:", JSON.stringify(data));
+            res.json({ success: false, error: "Groq xatosi: " + (data.error?.message || "Noma'lum xato!") });
         }
     } catch (e) {
         console.error("Groq Analysis Error:", e);
-        const aiRes = await callGemini(mainPrompt, true, imageBase64);
-        res.json({ success: aiRes.success, analysis: aiRes.text || aiRes.error });
+        res.json({ success: false, error: "Groq ulanish xatosi: " + e.message });
     }
 });
 
